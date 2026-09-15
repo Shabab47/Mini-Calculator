@@ -1,0 +1,11 @@
+# Build output
+calculator.exe
+*.o
+*.obj
+
+# Build directories
+build/
+
+# OS files
+.DS_Store
+Thumbs.db
