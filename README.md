@@ -2,6 +2,11 @@
 
 A tiny GUI calculator for Windows, written in C++ (Win32 API) with **no external dependencies**. Builds into a single, portable `.exe` — download and run, no install needed.
 
+## Code (easy to read)
+
+- `Calculator.h` — the "brain": a simple OOP class that stores the state and does all the math
+- `calculator.cpp` — only the window and buttons; every button press just calls a `Calculator` method
+
 ## Features
 
 - Add, subtract, multiply, divide
@@ -35,7 +40,7 @@ cl /std:c++17 /utf-8 /O2 /EHsc calculator.cpp /link /SUBSYSTEM:WINDOWS user32.li
 
 ## Tests
 
-The calculation logic lives in `calc.hpp` and is unit-tested with `logic_test.cpp`:
+The `Calculator` class is unit-tested with `logic_test.cpp`:
 
 ```
 g++ -std=c++17 -static -municode logic_test.cpp -o logic_test.exe

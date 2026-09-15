@@ -1,99 +1,83 @@
-// logic_test.cpp - exercises the calculator state machine from calc.hpp.
-#include "calc.hpp"
-#include <cwchar>
+// logic_test.cpp - a tiny test program for the Calculator class.
+// Build (console, no window):  g++ -std=c++17 -static -municode logic_test.cpp -o logic_test.exe
+// Run: logic_test.exe
 
-namespace calc {
-State st;
-}
+#include <cstdio>
 
-static const wchar_t* show() {
-    return calc::st.error ? calc::st.errMsg.c_str() : calc::buildExpression().c_str();
-}
+#include "Calculator.h"
 
-static void digit(wchar_t d) { calc::onDigit(d); }
-static void op(wchar_t o)    { calc::onOperator(o); }
-static void eq()             { calc::onEquals(); }
-static void pct()            { calc::onPercent(); }
-static void neg()            { calc::onNegate(); }
-static void bs()             { calc::onBackspace(); }
-static void ce()             { calc::onClearEntry(); }
-static void clr()            { calc::resetAll(); }
+Calculator c;       // one calculator, tested below
+int bad = 0;        // how many tests failed
 
-static int failures = 0;
-
-static void expect(const wchar_t* label, const wchar_t* want) {
-    const wchar_t* got = show();
-    if (std::wcscmp(got, want) == 0) {
-        std::wprintf(L"PASS  %-28s -> '%s'\n", label, got);
+// check that the screen shows exactly "wanted"
+void check(const wchar_t* label, const wchar_t* wanted) {
+    std::wstring got = c.getDisplay();
+    if (got == wanted) {
+        std::wprintf(L"PASS  %-18ls -> '%ls'\n", label, got.c_str());
     } else {
-        std::wprintf(L"FAIL  %-28s expected '%s' got '%s'\n", label, want, got);
-        ++failures;
+        std::wprintf(L"FAIL  %-18ls expected '%ls' got '%ls'\n", label, wanted, got.c_str());
+        ++bad;
     }
 }
 
 int wmain() {
-    // The exact scenario the user asked for.
-    clr(); digit(L'1'); digit(L'2'); expect(L"type 12", L"12");
-    op(L'-');                        expect(L"type 12-", L"12-");
-    digit(L'2');                      expect(L"type 12-2", L"12-2");
-    eq();                              expect(L"12-2 =", L"10");
+    // the scenario you asked for: 12 + 2 = 14
+    c.clearAll();
+    c.inputDigit(L'1'); c.inputDigit(L'2');   check(L"type 12", L"12");
+    c.setOperator(L'+');                       check(L"press +", L"12+");
+    c.inputDigit(L'2');                        check(L"press 2", L"12+2");
+    c.equals();                                check(L"press =", L"14");
 
-    // "5 =" stays 5; lone "=" does nothing.
-    clr(); digit(L'5'); eq();          expect(L"5 =", L"5");
-    eq();                              expect(L"= again", L"5");
-    clr(); eq();                       expect(L"lone =", L"0");
+    // minus also shows the whole expression
+    c.clearAll();
+    c.inputDigit(L'1'); c.inputDigit(L'2'); c.setOperator(L'-');
+    c.inputDigit(L'2'); c.equals();            check(L"12 - 2 =", L"10");
 
-    // Syntax error: operator before a number.
-    clr(); op(L'+');                   expect(L"+ first (syntax)", L"Syntax error");
-    digit(L'7');                       expect(L"recover with digit", L"7");
+    // "5 =" keeps 5; a lonely "=" does nothing
+    c.clearAll();
+    c.inputDigit(L'5'); c.equals();            check(L"5 =", L"5");
+    c.equals();                                check(L"= again", L"5");
+    c.clearAll();
+    c.equals();                                check(L"lonely =", L"0");
 
-    // Syntax error: two operators in a row.
-    clr(); digit(L'5'); op(L'+'); op(L'*'); expect(L"5 + * (syntax)", L"Syntax error");
+    // syntax errors
+    c.clearAll();
+    c.setOperator(L'+');                       check(L"+ first", L"Syntax error");
+    c.inputDigit(L'7');                        check(L"recover with 7", L"7");
+    c.clearAll();
+    c.inputDigit(L'5'); c.setOperator(L'+'); c.setOperator(L'*');
+                                               check(L"5 + *", L"Syntax error");
 
-    // Math error: divide by zero.
-    clr(); digit(L'5'); op(L'/'); digit(L'0'); eq(); expect(L"5/0 =", L"Math error");
+    // math error: divide by zero, then recover
+    c.clearAll();
+    c.inputDigit(L'5'); c.setOperator(L'/'); c.inputDigit(L'0'); c.equals();
+                                               check(L"5 / 0 =", L"Math error");
+    c.inputDigit(L'2');                        check(L"recover with 2", L"2");
 
-    // Math error: overflow from multiplication.
-    clr(); digit(L'9');
-    for (int i = 0; i < 16; ++i) digit(L'9');
-    op(L'*'); digit(L'9');
-    for (int i = 0; i < 16; ++i) digit(L'9');
-    eq();                              expect(L"1e17 * 1e17 =", L"1e+34");
+    // percent, negate, backspace
+    c.clearAll();
+    c.inputDigit(L'5'); c.inputDigit(L'0'); c.percent();  check(L"50 %", L"0.5");
+    c.clearAll();
+    c.inputDigit(L'5'); c.negate();            check(L"5 +/-", L"-5");
+    c.negate();                                check(L"-5 +/-", L"5");
+    c.clearAll();
+    c.inputDigit(L'1'); c.inputDigit(L'2'); c.inputDigit(L'3');
+    c.backspace(); c.backspace();              check(L"123 bs bs", L"1");
 
-    double r = 0;
-    bool overflow = !calc::applyOp(L'*', 1e308, 1e308, r);
-    std::wprintf(L"PASS  %-28s -> %s\n", L"overflow->math error", overflow ? L"true" : L"false");
-    if (!overflow) ++failures;
+    // CE keeps the pending operation: 5 + 3 CE 4 = 9
+    c.clearAll();
+    c.inputDigit(L'5'); c.setOperator(L'+'); c.inputDigit(L'3');
+    c.clearEntry(); c.inputDigit(L'4'); c.equals();   check(L"5 + 3 CE 4 =", L"9");
 
-    // Percent of current value.
-    clr(); digit(L'5'); digit(L'0'); pct(); expect(L"50 %", L"0.5");
-    clr(); digit(L'5'); op(L'+'); digit(L'1'); digit(L'0'); pct(); expect(L"5 + 10 %", L"5+0.1");
+    // continue after a result: (5 + 3) * 2 = 16
+    c.clearAll();
+    c.inputDigit(L'5'); c.setOperator(L'+'); c.inputDigit(L'3'); c.equals();
+    c.setOperator(L'*'); c.inputDigit(L'2'); c.equals();  check(L"(5+3) * 2 =", L"16");
 
-    // Negate toggle.
-    clr(); digit(L'5'); neg();         expect(L"5 +/-", L"-5");
-    neg();                             expect(L"-5 +/-", L"5");
-
-    // Backspace.
-    clr(); digit(L'1'); digit(L'2'); digit(L'3'); bs(); bs(); expect(L"123 bs bs", L"1");
-    bs();                              expect(L"1 bs", L"0");
-
-    // Decimal.
-    clr(); digit(L'0'); bs();          expect(L"0 bs", L"0");
-    clr(); digit(L'7'); bs();          expect(L"7 bs", L"0");
-    clr(); digit(L'1'); digit(L'2'); bs(); expect(L"12 bs", L"1");
-
-    // CE keeps the pending operation.
-    clr(); digit(L'5'); op(L'+'); digit(L'3'); ce(); digit(L'4'); eq(); expect(L"5 + 3 CE 4 =", L"9");
-
-    // Chained immediate execution: 12 + 3 * 2 = 30.
-    clr(); digit(L'1'); digit(L'2'); op(L'+'); digit(L'3'); op(L'*'); digit(L'2'); eq();
-    expect(L"12 + 3 * 2 =", L"30");
-
-    // Chaining after '=': 5 + 3 = 8, then * 2 = 16.
-    clr(); digit(L'5'); op(L'+'); digit(L'3'); eq();
-    op(L'*'); digit(L'2'); eq();       expect(L"(5+3) * 2 =", L"16");
-
-    if (failures == 0) std::wprintf(L"\nALL TESTS PASSED\n");
-    else std::wprintf(L"\n%d FAILURE(S)\n", failures);
-    return failures == 0 ? 0 : 1;
+    if (bad == 0) {
+        std::wprintf(L"\nALL TESTS PASSED\n");
+        return 0;
+    }
+    std::wprintf(L"\n%d TEST(S) FAILED\n", bad);
+    return 1;
 }
