@@ -2,6 +2,24 @@
 
 A tiny GUI calculator for Windows, written in C++ (Win32 API) with **no external dependencies**. Builds into a single, portable `.exe` — download and run, no install needed.
 
+## Read this first
+
+One brain, three faces — everything uses the same `Calculator` class:
+
+- **`Calculator.h`** — the brain (OOP class: private state + public methods)
+- **`calculator.cpp`** — the GUI: a window and buttons. Each click calls one `Calculator` method, then prints `getDisplay()`.
+- **`console.cpp`** — a terminal version that does the *exact same* thing in a tiny `main()`. The best way to learn the brain.
+- **`logic_test.cpp`** — automated tests that prove the brain works.
+
+### The flow in 4 lines
+
+```
+button/key pressed
+   -> Calculator method call  (inputDigit / setOperator / equals / ...)
+   -> state changes inside the Calculator object
+   -> getDisplay() returns what the screen should show
+```
+
 ## Code (easy to read)
 
 - `Calculator.h` — the "brain": a simple OOP class that stores the state and does all the math
@@ -26,8 +44,17 @@ Grab the latest build from the [Releases](https://github.com/Shabab47/Mini-Calcu
 
 ### MinGW-w64 (recommended)
 
+The GUI app (the downloadable `.exe`):
+
 ```
 g++ -std=c++17 -O2 -mwindows -municode -static calculator.cpp -o calculator.exe
+```
+
+The terminal learning version (no window, great for learning):
+
+```
+g++ -std=c++17 -static -municode console.cpp -o console.exe
+console.exe
 ```
 
 ### MSVC (Visual Studio)
