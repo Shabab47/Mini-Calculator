@@ -5,6 +5,7 @@ A tiny GUI calculator for Windows, written in C++ (Win32 API) with **no external
 ## Features
 
 - Add, subtract, multiply, divide
+- Shows the whole expression as you type (e.g. `12-2`), then the result (`10`) on `=`
 - Percent (`%`), negate (`+/-`), decimal point
 - `C` (clear all), `CE` (clear entry), backspace
 - Error handling:
@@ -31,6 +32,15 @@ cl /std:c++17 /utf-8 /O2 /EHsc calculator.cpp /link /SUBSYSTEM:WINDOWS user32.li
 ```
 
 (`/utf-8` is required because the source uses Unicode symbols.)
+
+## Tests
+
+The calculation logic lives in `calc.hpp` and is unit-tested with `logic_test.cpp`:
+
+```
+g++ -std=c++17 -static -municode logic_test.cpp -o logic_test.exe
+logic_test.exe
+```
 
 ## How releases work
 
